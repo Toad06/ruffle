@@ -434,6 +434,7 @@ export class RufflePlayer extends HTMLElement {
     }
 
     private playButtonClicked(): void {
+        this.playSilentSound();
         this.play();
     }
 
@@ -572,6 +573,22 @@ export class RufflePlayer extends HTMLElement {
         }
     }
 
+    /**
+     * Plays a silent sound.
+     *
+     * This is needed to unlock audio on iOS, when phone is set to silent.
+     */
+    private playSilentSound(): void {
+        const audio = new Audio();
+        audio.src =
+            "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+        audio.play().catch(() => {
+            console.warn(
+                "Couldn't play startup sound - audio might be disabled"
+            );
+        });
+    }
+
     private audioState(): string {
         if (this.instance) {
             const audioContext = this.instance.audio_context();
@@ -583,6 +600,7 @@ export class RufflePlayer extends HTMLElement {
     private unmuteOverlayClicked(): void {
         if (this.instance) {
             if (this.audioState() !== "running") {
+                this.playSilentSound();
                 const audioContext = this.instance.audio_context();
                 if (audioContext) {
                     audioContext.resume();
