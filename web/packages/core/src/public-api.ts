@@ -41,7 +41,7 @@ export class PublicAPI {
      * Construct the Ruffle public API.
      *
      * Do not use this function to negotiate a public API. Instead, use
-     * `public_api` to register your Ruffle source with an existing public API
+     * `negotiate` to register your Ruffle source with an existing public API
      * if it exists.
      *
      * Constructing a Public API will also trigger it to initialize Ruffle once
@@ -111,6 +111,15 @@ export class PublicAPI {
     }
 
     /**
+     * Check if the browser should be able to run Ruffle.
+     *
+     * @returns True if the browser supports the required API's.
+     */	
+	get browserSupported(): boolean {
+		return !!(window.WebAssembly && window.PointerEvent);
+	}
+
+    /**
      * Register a given source with the Ruffle Public API.
      *
      * @param name The name of the source.
@@ -153,18 +162,35 @@ export class PublicAPI {
      * content and weak plugin detection.
      */
     init(): void {
-        if (!this.invoked) {
-            this.invoked = true;
-            this.newestName = this.newestSourceName();
+        if (this.browserSupported) {
+            if (!this.invoked) {
+                this.invoked = true;
+                this.newestName = this.newestSourceName();
 
-            if (this.newestName === null) {
-                throw new Error("No registered Ruffle source!");
+                if (this.newestName === null) {
+                    throw new Error("No registered Ruffle source!");
+                }
+
+                const polyfills = this.config.polyfills;
+                if (polyfills !== false) {
+                    this.sources[this.newestName].polyfill(
+                        this.newestName === "extension"
+                    );
+                }
             }
+        } else {
+            console.warn(
+                "This browser doesn't support the API's required to use Ruffle."
+            );
+        }
 
-            const polyfills = this.config.polyfills;
-            if (polyfills !== false) {
-                this.sources[this.newestName].polyfill(
-                    this.newestName === "extension"
+        const onload = this.config.onload;
+        if (typeof onload === "function") {
+            try {
+                onload(this.browserSupported ? this : null);
+            } catch (err) {
+                console.error(
+                    `Ruffle failed to execute onload function: ${err}`
                 );
             }
         }
@@ -184,14 +210,14 @@ export class PublicAPI {
      * Look up a specific Ruffle version (or any version satisfying a given set
      * of requirements) and return it's API.
      *
-     * @param ver_requirement A set of semantic version requirement
+     * @param verRequirement A set of semantic version requirement
      * strings that the player version must satisfy.
      *
      * @returns An instance of the Source API, if one or more
      * sources satisfied the requirement.
      */
-    satisfying(ver_requirement: string): SourceAPI | null {
-        const requirement = VersionRange.fromRequirementString(ver_requirement);
+    satisfying(verRequirement: string): SourceAPI | null {
+        const requirement = VersionRange.fromRequirementString(verRequirement);
         let valid = null;
 
         for (const k in this.sources) {
@@ -296,7 +322,7 @@ export class PublicAPI {
             // Flash Player immediately when they load.
             // TODO: Maybe there's a better place for this.
             const polyfills = publicAPI.config.polyfills;
-            if (polyfills !== false) {
+            if (publicAPI.browserSupported && polyfills !== false) {
                 sourceAPI.pluginPolyfill();
             }
         }

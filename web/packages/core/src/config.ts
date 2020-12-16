@@ -1,3 +1,5 @@
+import { PublicAPI } from "./public-api";
+
 /**
  * Represents the various types of auto-play behaviours that are supported.
  */
@@ -31,4 +33,10 @@ export interface Config extends BaseLoadOptions {
      * @default true
      */
     polyfills?: boolean;
+
+    /**
+     * A callback function that triggers once Ruffle has finished
+     * initializing. Called every time there is a new Ruffle source.
+     */
+    onload?: (api: PublicAPI | null) => void;
 }
