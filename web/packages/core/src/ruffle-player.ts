@@ -206,7 +206,9 @@ export class RufflePlayer extends HTMLElement {
         this.contextMenuElement = this.shadow.getElementById("context-menu")!;
         this.addEventListener("contextmenu", this.showContextMenu.bind(this));
         this.addEventListener("pointerdown", this.pointerDown.bind(this));
-        window.addEventListener("click", this.hideContextMenu.bind(this));
+        window.addEventListener("click", this.hideContextMenu.bind(this), {
+            capture: true,
+        });
 
         this.instance = null;
         this.options = null;
@@ -770,8 +772,10 @@ export class RufflePlayer extends HTMLElement {
     }
 
     private hideContextMenu(): void {
-        this.instance?.clear_custom_menu_items();
-        this.contextMenuElement.style.display = "none";
+        if (this.contextMenuElement.style.display !== "none") {
+            this.instance?.clear_custom_menu_items();
+            this.contextMenuElement.style.display = "none";
+        }
     }
 
     /**
@@ -816,7 +820,6 @@ export class RufflePlayer extends HTMLElement {
      * Used by the polyfill elements, RuffleObject and RuffleEmbed.
      *
      * @param elem The element to copy all attributes from.
-     *
      * @protected
      */
     protected copyElement(elem: HTMLElement): void {
