@@ -18,8 +18,8 @@ winit = "0.25.0"
 webbrowser = "0.5.5"
 url = "2.2.2"
 clipboard = "0.5.0"
-dirs = "3.0"
-isahc = "1.5.0"
+dirs = "4.0"
+isahc = "1.5.1"
 tinyfiledialogs = "3.8.3"
 
 [target.'cfg(windows)'.dependencies]
@@ -29,12 +29,13 @@ winapi = "0.3.9"
 embed-resource = "1"
 
 [features]
-default = ["h263"]
+default = ["h263", "vp6"]
 
 # core features
 avm_debug = ["ruffle_core/avm_debug"]
 h263 = ["ruffle_core/h263"]
 lzma = ["ruffle_core/lzma"]
+vp6 = ["ruffle_core/vp6"]
 
 # wgpu features
 render_debug_labels = ["ruffle_render_wgpu/render_debug_labels"]
