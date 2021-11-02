@@ -4,6 +4,7 @@ import { loadRuffle } from "./load-ruffle";
 import { ruffleShadowTemplate } from "./shadow-template";
 import { lookupElement } from "./register-element";
 import { Config } from "./config";
+import * as methods from "./movie-methods";
 import {
     BaseLoadOptions,
     DataLoadOptions,
@@ -164,6 +165,42 @@ export class RufflePlayer extends HTMLElement {
      * @returns True if the command was handled.
      */
     onFSCommand: ((command: string, args: string) => boolean) | null;
+
+    /**
+     * Legacy Flash methods.
+     * This will be defaulted with any global configuration.
+     */
+    Back?: () => void;
+    CallFunction?: (_: string) => string | undefined;
+    CurrentFrame?: () => number;
+    FlashVersion?: () => number;
+    Forward?: () => void;
+    FrameLoaded?: (_: number) => boolean | undefined;
+    GetVariable?: (_: string) => string | null;
+    GotoFrame?: (_: number) => void;
+    IsPlaying?: () => boolean;
+    LoadMovie?: (_: number, __: string) => void;
+    Pan?: (_: number, __: number, ___: number) => void;
+    PercentLoaded?: () => number;
+    Play?: () => void;
+    Rewind?: () => void;
+    SetVariable?: (_: string, __: string) => void;
+    SetZoomRect?: (_: number, __: number, ___: number, ____: number) => void;
+    StopPlay?: () => void;
+    TotalFrames?: () => number;
+    Zoom?: (_: number) => void;
+    TCallFrame?: (_: string, __: number) => void;
+    TCallLabel?: (_: string, __: string) => void;
+    TCurrentFrame?: (_: string) => number | undefined;
+    TCurrentLabel?: (_: string) => string;
+    TGetProperty?: (_: string, __: number) => string | undefined;
+    TGetPropertyAsNumber?: (_: string, __: number) => number | undefined;
+    TGetPropertyNum?: (_: string, __: number) => number | undefined;
+    TGotoFrame?: (_: string, __: number) => void;
+    TGotoLabel?: (_: string, __: string) => void;
+    TPlay?: (_: string) => void;
+    TSetProperty?: (_: string, __: number, ___: number | string) => void;
+    TStopPlay?: (_: string) => void;
 
     /**
      * Any configuration that should apply to this specific player.
@@ -1238,6 +1275,40 @@ export class RufflePlayer extends HTMLElement {
         this.dispatchEvent(new Event(RufflePlayer.LOADED_METADATA));
         // TODO: Move this to whatever function changes the ReadyState to Loaded when we have streaming support.
         this.dispatchEvent(new Event(RufflePlayer.LOADED_DATA));
+    }
+
+    setPolyfillMethods(): void {
+        this.Back = methods.Back;
+        this.CallFunction = methods.CallFunction;
+        this.CurrentFrame = methods.CurrentFrame;
+        this.FlashVersion = methods.FlashVersion;
+        this.Forward = methods.Forward;
+        this.FrameLoaded = methods.FrameLoaded;
+        this.GetVariable = methods.GetVariable;
+        this.GotoFrame = methods.GotoFrame;
+        this.IsPlaying = methods.IsPlaying;
+        this.LoadMovie = methods.LoadMovie;
+        this.Pan = methods.Pan;
+        this.PercentLoaded = methods.PercentLoaded;
+        this.Play = methods.Play;
+        this.Rewind = methods.Rewind;
+        this.SetVariable = methods.SetVariable;
+        this.SetZoomRect = methods.SetZoomRect;
+        this.StopPlay = methods.StopPlay;
+        this.TotalFrames = methods.TotalFrames;
+        this.Zoom = methods.Zoom;
+        this.TCallFrame = methods.TCallFrame;
+        this.TCallLabel = methods.TCallLabel;
+        this.TCurrentFrame = methods.TCurrentFrame;
+        this.TCurrentLabel = methods.TCurrentLabel;
+        this.TGetProperty = methods.TGetProperty;
+        this.TGetPropertyAsNumber = methods.TGetPropertyAsNumber;
+        this.TGetPropertyNum = methods.TGetPropertyNum;
+        this.TGotoFrame = methods.TGotoFrame;
+        this.TGotoLabel = methods.TGotoLabel;
+        this.TPlay = methods.TPlay;
+        this.TSetProperty = methods.TSetProperty;
+        this.TStopPlay = methods.TStopPlay;
     }
 
     setIsExtension(isExtension: boolean): void {
