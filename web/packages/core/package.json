@@ -40,16 +40,16 @@
         "wasm-feature-detect": "^1.2.11"
     },
     "devDependencies": {
-        "@types/mocha": "^9.0.0",
-        "@typescript-eslint/eslint-plugin": "^5.8.1",
+        "@types/mocha": "^9.1.0",
+        "@typescript-eslint/eslint-plugin": "^5.10.2",
         "@typescript-eslint/parser": "^5.8.1",
         "eslint": "^8.6.0",
         "eslint-plugin-jsdoc": "^37.1.0",
-        "mocha": "^9.1.3",
+        "mocha": "^9.2.0",
         "replace-in-file": "^6.3.2",
         "shx": "^0.3.3",
         "ts-node": "^10.4.0",
         "typedoc": "^0.22.10",
-        "typescript": "^4.5.2"
+        "typescript": "^4.5.5"
     }
 }
