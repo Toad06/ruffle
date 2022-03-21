@@ -118,45 +118,59 @@ impl<'gc> StageObject<'gc> {
         context: &mut UpdateContext<'_, 'gc, '_>,
         case_sensitive: bool,
     ) -> Option<Value<'gc>> {
-        if let Some(prefix) = name.slice(..6) {
+        if let Some(level_id) = Self::parse_level_id(&name, case_sensitive, false) {
+            let level = context
+                .stage
+                .child_by_depth(level_id)
+                .map(|o| o.object())
+                .unwrap_or(Value::Undefined);
+            return Some(level);
+        }
+        None
+    }
+
+    pub fn parse_level_id(digits: &WStr, case_sensitive: bool, strict_parse: bool) -> Option<i32> {
+        if let Some(prefix) = digits.slice(..6) {
+            // TODO: Use `split_first`?
             let is_level = if case_sensitive {
                 prefix == b"_level" || prefix == b"_flash"
             } else {
                 prefix.eq_ignore_case(WStr::from_units(b"_level"))
                     || prefix.eq_ignore_case(WStr::from_units(b"_flash"))
             };
+
             if is_level {
-                let level_id = Self::parse_level_id(&name[6..]);
-                let level = context
-                    .stage
-                    .child_by_depth(level_id)
-                    .map(|o| o.object())
-                    .unwrap_or(Value::Undefined);
-                return Some(level);
+                let digits = &digits[6..];
+                let (is_negative, digits) = match digits.get(0) {
+                    Some(45) => (true, &digits[1..]),
+                    _ => (false, digits),
+                };
+
+                let mut level_id: i32 = 0;
+                let mut path_char = None;
+                for char in digits.iter().map_while(|c| char::from_u32(c.into())) {
+                    if let Some(digit) = char.to_digit(10) {
+                        if path_char.is_none() {
+                            level_id = level_id.wrapping_mul(10);
+                            level_id = level_id.wrapping_add(digit as i32);
+                        } else if path_char.unwrap() == '\u{002F}' {
+                            return None;
+                        }
+                    } else if path_char.is_none() && (char == '\u{002E}' || char == '\u{002F}') {
+                        path_char = Some(char);
+                    } else if strict_parse || path_char.is_some() {
+                        return None;
+                    }
+                }
+                if is_negative {
+                    level_id = level_id.wrapping_neg();
+                }
+
+                return Some(level_id);
             }
         }
 
         None
-    }
-
-    fn parse_level_id(digits: &WStr) -> i32 {
-        // TODO: Use `split_first`?
-        let (is_negative, digits) = match digits.get(0) {
-            Some(45) => (true, &digits[1..]),
-            _ => (false, digits),
-        };
-        let mut level_id: i32 = 0;
-        for digit in digits
-            .iter()
-            .map_while(|c| char::from_u32(c.into()).and_then(|c| c.to_digit(10)))
-        {
-            level_id = level_id.wrapping_mul(10);
-            level_id = level_id.wrapping_add(digit as i32);
-        }
-        if is_negative {
-            level_id = level_id.wrapping_neg();
-        }
-        level_id
     }
 }
 
