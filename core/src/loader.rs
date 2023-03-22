@@ -1611,6 +1611,25 @@ impl<'gc> Loader<'gc> {
             None => {}
         }
 
+        // Fire the onData method and event.
+        if let Some(movie_clip) = clip.as_movie_clip() {
+            let mut activation = Activation::from_stub(
+                uc.reborrow(),
+                ActivationIdentifier::root("[Loader Complete]"),
+            );
+            let object = clip.object().coerce_to_object(&mut activation);
+            activation.context.action_queue.queue_action(
+                movie_clip.into(),
+                ActionType::Method {
+                    object,
+                    name: "onData",
+                    args: vec![],
+                },
+                false,
+            );
+            movie_clip.event_dispatch(&mut activation.context, ClipEvent::Data);
+        }
+
         if let Loader::Movie { loader_status, .. } = uc.load_manager.get_loader_mut(handle).unwrap()
         {
             *loader_status = LoaderStatus::Succeeded;
