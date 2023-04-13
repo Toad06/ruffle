@@ -4,7 +4,9 @@ use crate::avm1::activation::Activation;
 use crate::avm1::error::Error;
 use crate::avm1::property_decl::{define_properties_on, Declaration};
 use crate::avm1::{Object, ScriptObject, Value};
-use crate::external::{Callback, Value as ExternalValue};
+use crate::external::{
+    Callback, UnsupportedType as ExternalUnsupportedType, Value as ExternalValue,
+};
 use gc_arena::MutationContext;
 
 const OBJECT_DECLS: &[Declaration] = declare_properties! {
@@ -72,7 +74,16 @@ pub fn call<'gc>(
         let mut external_args = Vec::with_capacity(external_args_len);
         if external_args_len > 0 {
             for arg in &args[1..] {
-                external_args.push(ExternalValue::from_avm1(activation, arg.to_owned())?);
+                let arg_val = ExternalValue::from_avm1(activation, arg.to_owned())?;
+                match arg_val {
+                    ExternalValue::Invalid(ExternalUnsupportedType::Function) => {
+                        return Ok(Value::Null)
+                    }
+                    ExternalValue::Invalid(ExternalUnsupportedType::MovieClip) => {
+                        return Ok(Value::Undefined)
+                    }
+                    _ => external_args.push(arg_val),
+                }
             }
         }
         Ok(method

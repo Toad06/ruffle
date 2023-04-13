@@ -10,6 +10,7 @@ use crate::avm2::object::TObject as _;
 use crate::avm2::Value as Avm2Value;
 use crate::avm2::{ArrayObject as Avm2ArrayObject, Object as Avm2Object};
 use crate::context::UpdateContext;
+use crate::display_object::DisplayObject;
 use crate::string::AvmString;
 use gc_arena::Collect;
 use std::collections::BTreeMap;
@@ -26,6 +27,15 @@ pub enum Value {
     String(String),
     Object(BTreeMap<String, Value>),
     List(Vec<Value>),
+    Invalid(UnsupportedType),
+}
+
+/// ActionScript functions should be supported values in Flash Player,
+/// but they trigger a JavaScript error and return `null`.
+#[derive(Debug, Clone, PartialEq)]
+pub enum UnsupportedType {
+    MovieClip,
+    Function,
 }
 
 impl From<AvmString<'_>> for Value {
@@ -119,6 +129,11 @@ impl From<Vec<Value>> for Value {
 }
 
 impl Value {
+	pub fn check_invalid_types(
+        vec: &mut Vec<Value>,
+    ) {
+	}
+	
     pub fn from_avm1<'gc>(
         activation: &mut Avm1Activation<'_, 'gc>,
         value: Avm1Value<'gc>,
@@ -129,14 +144,28 @@ impl Value {
             Avm1Value::Bool(value) => value.into(),
             Avm1Value::Number(value) => value.into(),
             Avm1Value::String(value) => Value::String(value.to_string()),
-            Avm1Value::MovieClip(_) => Value::Null,
+            Avm1Value::MovieClip(_) => Value::Invalid(UnsupportedType::MovieClip),
             Avm1Value::Object(object) => {
-                if object.as_array_object().is_some() {
+                if let Some(DisplayObject::MovieClip(_)) = object.as_display_object() {
+                    tracing::error!("MC");
+                    return Ok(Value::Invalid(UnsupportedType::MovieClip));
+                }
+                let mut unsupported_types = Vec::new();
+                let result = if object.as_executable().is_some() {
+                    Value::Invalid(UnsupportedType::Function)
+                } else if object.as_array_object().is_some() {
                     let length = object.length(activation)?;
                     let values: Result<Vec<_>, Avm1Error<'gc>> = (0..length)
                         .map(|i| {
                             let element = object.get_element(activation, i);
-                            Value::from_avm1(activation, element)
+                            let value = Value::from_avm1(activation, element);
+                            match value {
+                                Ok(Value::Invalid(ref _type)) => {
+                                    unsupported_types.push(_type.clone());
+                                    value
+                                }
+                                _ => value,
+                            }
                         })
                         .collect();
                     Value::List(values?)
@@ -145,9 +174,27 @@ impl Value {
                     let mut values = BTreeMap::new();
                     for key in keys {
                         let value = object.get(key, activation)?;
-                        values.insert(key.to_string(), Value::from_avm1(activation, value)?);
+                        let value = Value::from_avm1(activation, value)?;
+                        let value = match value {
+                            Value::Invalid(ref _type) => {
+                                unsupported_types.push(_type.clone());
+                                value
+                            }
+                            _ => value,
+                        };
+                        values.insert(key.to_string(), value);
                     }
                     Value::Object(values)
+                };
+                if !unsupported_types.is_empty() {
+                    let unsupported = if unsupported_types.contains(&UnsupportedType::Function) {
+                        UnsupportedType::Function
+                    } else {
+                        UnsupportedType::MovieClip
+                    };
+                    Value::Invalid(unsupported)
+                } else {
+                    result
                 }
             }
         })
@@ -186,6 +233,7 @@ impl Value {
                     .map(|value| value.to_owned().into_avm1(activation)),
             )
             .into(),
+            Value::Invalid(_) => unreachable!(),
         }
     }
 
@@ -237,6 +285,7 @@ impl Value {
 
                 Avm2Value::Object(Avm2ArrayObject::from_storage(activation, storage).unwrap())
             }
+            Value::Invalid(_) => unreachable!(),
         }
     }
 }

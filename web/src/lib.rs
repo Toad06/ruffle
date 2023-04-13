@@ -1257,10 +1257,11 @@ fn js_to_external_value(js: &JsValue) -> ExternalValue {
             }
         }
         ExternalValue::Object(values)
-    } else if js.is_null() {
-        ExternalValue::Null
-    } else {
+    } else if js.is_undefined() {
         ExternalValue::Undefined
+    } else {
+        // JavaScript-specific types like `Symbol` also return `null`.
+        ExternalValue::Null
     }
 }
 
@@ -1292,6 +1293,7 @@ fn external_to_js_value(external: ExternalValue) -> JsValue {
             }
             array.into()
         }
+        Value::Invalid(_) => unreachable!(),
     }
 }
 
