@@ -961,6 +961,7 @@ impl Player {
             | PlayerEvent::MouseMove { .. }
             | PlayerEvent::MouseUp { .. }
             | PlayerEvent::MouseDown { .. }
+            | PlayerEvent::MouseEnter { .. }
             | PlayerEvent::MouseLeave
             | PlayerEvent::MouseWheel { .. }
             | PlayerEvent::GamepadButtonDown { .. }
@@ -1290,7 +1291,8 @@ impl Player {
         });
 
         // Update mouse state.
-        if let PlayerEvent::MouseMove { x, y }
+        if let PlayerEvent::MouseEnter { x, y }
+        | PlayerEvent::MouseMove { x, y }
         | PlayerEvent::MouseDown { x, y, .. }
         | PlayerEvent::MouseUp { x, y, .. } = event
         {
@@ -2816,7 +2818,7 @@ impl PlayerBuilder {
 
                 // Input
                 input: InputManager::new(self.gamepad_button_mapping),
-                mouse_in_stage: true,
+                mouse_in_stage: cfg!(not(target_family = "wasm")), // TODO: should be `false` for all targets
                 mouse_position: Point::ZERO,
                 mouse_cursor: MouseCursor::Arrow,
                 mouse_cursor_needs_check: false,

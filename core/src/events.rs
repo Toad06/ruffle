@@ -26,6 +26,10 @@ pub enum PlayerEvent {
         button: MouseButton,
         index: Option<usize>,
     },
+    MouseEnter {
+        x: f64,
+        y: f64,
+    },
     MouseLeave,
     MouseWheel {
         delta: MouseWheelDelta,

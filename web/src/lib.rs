@@ -557,10 +557,15 @@ impl RuffleHandle {
                 &player.canvas,
                 "pointerenter",
                 false,
-                move |_js_event: PointerEvent| {
+                move |js_event: PointerEvent| {
                     let _ = ruffle.with_instance(move |instance| {
+                        let event = PlayerEvent::MouseEnter {
+                            x: f64::from(js_event.offset_x()) * instance.device_pixel_ratio,
+                            y: f64::from(js_event.offset_y()) * instance.device_pixel_ratio,
+                        };
                         let _ = instance.with_core_mut(|core| {
                             core.set_mouse_in_stage(true);
+                            core.handle_event(event);
                         });
                     });
                 },
