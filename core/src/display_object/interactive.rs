@@ -18,6 +18,7 @@ use crate::display_object::{
 };
 use crate::events::{ClipEvent, ClipEventResult, MouseButton};
 use bitflags::bitflags;
+use either::Either;
 use gc_arena::{Collect, Mutation};
 use ruffle_macros::enum_trait_object;
 use std::cell::{Ref, RefMut};
@@ -213,7 +214,12 @@ pub trait TInteractiveObject<'gc>:
     ) -> ClipEventResult {
         if event.propagates() {
             if let Some(container) = self.as_displayobject().as_container() {
-                for child in container.iter_render_list() {
+                let list = if true { //event.is_button_event() {
+                    Either::Right(container.iter_render_list())
+                } else {
+                    Either::Left(container.iter_render_list().rev())
+                };
+                for child in list {
                     if let Some(interactive) = child.as_interactive() {
                         if interactive.handle_clip_event(context, event) == ClipEventResult::Handled
                         {

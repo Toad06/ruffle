@@ -1,0 +1,8 @@
+// Mouse events set on _level0.square
+_level0.square.onMouseUp
+_level0.square.onMouseDown
+_level0.square.onMouseUp
+_level0.square.onMouseDown
+_level0.square.onPress
+_level0.square.onMouseUp
+_level0.square.onRelease
