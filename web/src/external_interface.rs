@@ -68,34 +68,43 @@ impl FsCommandProvider for JavascriptInterface {
 }
 
 pub fn js_to_external_value(js: &JsValue) -> ExternalValue {
-    if let Some(value) = js.as_f64() {
-        ExternalValue::Number(value)
-    } else if let Some(value) = js.as_string() {
-        ExternalValue::String(value)
-    } else if let Some(value) = js.as_bool() {
-        ExternalValue::Bool(value)
-    } else if let Some(array) = js.dyn_ref::<Array>() {
-        let values: Vec<_> = array
-            .values()
-            .into_iter()
-            .flatten()
-            .map(|v| js_to_external_value(&v))
-            .collect();
-        ExternalValue::List(values)
-    } else if js.is_null() {
-        ExternalValue::Null
-    } else if js.is_undefined() {
-        ExternalValue::Undefined
-    } else {
-        let mut values = BTreeMap::new();
-        for entry in Object::entries(&Object::from(js.to_owned())).values() {
-            if let Ok(entry) = entry.and_then(|v| v.dyn_into::<Array>()) {
-                if let Some(key) = entry.get(0).as_string() {
-                    values.insert(key, js_to_external_value(&entry.get(1)));
+    let js_typeof = js.js_typeof().as_string().unwrap_or_default();
+    match js_typeof.as_str() {
+        "number" => ExternalValue::Number(js.as_f64().unwrap_or_default()),
+        "string" => ExternalValue::String(js.as_string().unwrap_or_default()),
+        "boolean" => ExternalValue::Bool(js.as_bool().unwrap_or_default()),
+        "undefined" => ExternalValue::Undefined,
+        "function" => ExternalValue::Null,
+        "object" => {
+            if js.is_null() {
+                ExternalValue::Null
+            } else if let Some(array) = js.dyn_ref::<Array>() {
+                let values: Vec<_> = array
+                    .values()
+                    .into_iter()
+                    .flatten()
+                    .map(|v| js_to_external_value(&v))
+                    .collect();
+                ExternalValue::List(values)
+            } else {
+                let mut values = BTreeMap::new();
+                for entry in Object::entries(&Object::from(js.to_owned())).values() {
+                    if let Ok(entry) = entry.and_then(|v| v.dyn_into::<Array>()) {
+                        if let Some(key) = entry.get(0).as_string() {
+                            values.insert(key, js_to_external_value(&entry.get(1)));
+                        }
+                    }
                 }
+                ExternalValue::Object(values)
             }
         }
-        ExternalValue::Object(values)
+        _ => {
+            // We have encountered a JavaScript type that is unknown to Flash, such as `Symbol` or `BigInt`.
+            // In this situation, Flash throws with the following error: "Error: Error converting jsvals to NPVariants!".
+            // We choose to simply return `null` to align with the behavior in cases involving a function type.
+            tracing::warn!("ExternalInterface callback: Unsupported type {}", js_typeof);
+            ExternalValue::Null
+        }
     }
 }
 
