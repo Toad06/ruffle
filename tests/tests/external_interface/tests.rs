@@ -60,12 +60,22 @@ pub fn external_interface_avm1(
             );
 
             let mut root = BTreeMap::new();
-            root.insert("number".to_string(), (-500.1).into());
+
             root.insert("string".to_string(), "A string!".into());
             root.insert("true".to_string(), true.into());
             root.insert("false".to_string(), false.into());
             root.insert("null".to_string(), ExternalValue::Null);
+            root.insert("undefined".to_string(), ExternalValue::Undefined);
             root.insert("nested".to_string(), nested.into());
+
+            root.insert("number_1".to_string(), (-500.1).into());
+            root.insert("number_2".to_string(), (0.19999999999999996).into());
+            root.insert("number_3".to_string(), (-9999999999999996.0).into());
+            root.insert("number_inf".to_string(), f64::INFINITY.into());
+            root.insert("number_inf_neg".to_string(), f64::NEG_INFINITY.into());
+            root.insert("number_max".to_string(), f64::MAX.into());
+            root.insert("number_min".to_string(), f64::MIN_POSITIVE.into());
+
             let result = player_locked
                 .call_internal_interface("callWith", vec!["trace".into(), root.into()]);
             player_locked.log_backend().avm_trace(&format!(
