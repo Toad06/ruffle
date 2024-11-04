@@ -129,7 +129,25 @@ impl Value {
             Avm1Value::Undefined => Value::Undefined,
             Avm1Value::Null => Value::Null,
             Avm1Value::Bool(value) => value.into(),
-            Avm1Value::Number(value) => value.into(),
+            Avm1Value::Number(value) => {
+                // Flash coerces the number to a string, then parses that string back as a number.
+                // Because this coercion relies on `crate::avm1::value::f64_to_string`,
+                // the final number may differ from the original.
+                // For example, `0.19999999999999996` will become `0.2`.
+                let number_to_string = Avm1Value::Number(value)
+                    .coerce_to_string(activation)
+                    .unwrap();
+                // The coercion can fail in rare cases,
+                // e.g. with the number `-9999999999999996.0`, which produces the string `"-e+16"`.
+                // In such cases, Flash completely aborts the call to `ExternalInterface.call`.
+                // We choose to fall back to the original number instead.
+                let string_to_number = number_to_string.as_wstr().to_string();
+                let final_number = match string_to_number.parse::<f64>() {
+                    Ok(parsed_number) => parsed_number,
+                    Err(_) => value,
+                };
+                Value::Number(final_number)
+            }
             Avm1Value::String(value) => Value::String(value.to_string()),
             Avm1Value::MovieClip(_) => Value::Null,
             Avm1Value::Object(object) => {
@@ -160,7 +178,18 @@ impl Value {
             Value::Undefined => Avm1Value::Undefined,
             Value::Null => Avm1Value::Null,
             Value::Bool(value) => Avm1Value::Bool(value),
-            Value::Number(value) => Avm1Value::Number(value),
+            Value::Number(value) => {
+                // In Flash, the initial value appears to be a string that is then coerced to a number.
+                // In some cases, this affects the final number.
+                // For example, `0.19999999999999996` is turned into `0.19999999999999998`,
+                // `Infinity` into `NaN` and `1.7976931348623157e+308` into `Infinity`.
+                let number_to_string =
+                    AvmString::new_utf8(activation.context.gc_context, value.to_string());
+                let final_number = Avm1Value::String(number_to_string)
+                    .coerce_to_f64(activation)
+                    .unwrap();
+                Avm1Value::Number(final_number)
+            }
             Value::String(value) => {
                 let value = if activation.swf_version() < 9 && value.trim().is_empty() {
                     "null"
