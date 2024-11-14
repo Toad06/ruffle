@@ -726,7 +726,9 @@ impl<'gc> MovieClip<'gc> {
                     .0
                     .write(context.gc_context)
                     .define_text(context, reader, 2),
-                TagCode::DoInitAction => self.do_init_action(context, reader, tag_len),
+                TagCode::DoInitAction => {
+                    self.do_init_action(context, reader, tag_len, &mut static_data)
+                }
                 TagCode::DefineSceneAndFrameLabelData => {
                     self.scene_and_frame_labels(reader, &mut static_data)
                 }
@@ -859,6 +861,7 @@ impl<'gc> MovieClip<'gc> {
         context: &mut UpdateContext<'gc>,
         reader: &mut SwfStream<'_>,
         tag_len: usize,
+        static_data: &mut MovieClipStatic<'gc>,
     ) -> Result<(), Error> {
         if self.movie().is_action_script_3() {
             tracing::warn!("DoInitAction tag in AVM2 movie");
@@ -869,7 +872,7 @@ impl<'gc> MovieClip<'gc> {
         // Queue the init actions.
         // TODO: Init actions are supposed to be executed once, and it gives a
         // sprite ID... how does that work?
-        let _sprite_id = reader.read_u16()?;
+        let sprite_id = reader.read_u16()?;
         let num_read = reader.pos(start);
 
         let slice = self
@@ -880,7 +883,12 @@ impl<'gc> MovieClip<'gc> {
             .resize_to_reader(reader, tag_len - num_read);
 
         if !slice.is_empty() {
-            Avm1::run_stack_frame_for_init_action(self.into(), slice, context);
+            // LJPTV - lecteur video secondaire
+            if !static_data.do_init_tags.is_empty() || (sprite_id == 20480 && tag_len == 2772) {
+                static_data.do_init_tags.push(slice);
+            } else {
+                Avm1::run_stack_frame_for_init_action(self.into(), slice, context);
+            }
         }
 
         Ok(())
@@ -1569,7 +1577,16 @@ impl<'gc> MovieClip<'gc> {
                 TagCode::SetBackgroundColor => self.set_background_color(context, reader),
                 TagCode::StartSound if run_sounds => self.start_sound_1(context, reader),
                 TagCode::SoundStreamBlock if run_sounds => self.sound_stream_block(context, reader),
-                TagCode::ShowFrame => return Ok(ControlFlow::Exit),
+                TagCode::ShowFrame => {
+                    // LJPTV - lecteur video secondaire
+                    if !self.0.read().static_data.do_init_tags.is_empty() {
+                        let tags = self.0.read().static_data.do_init_tags.clone();
+                        for tag in tags {
+                            Avm1::run_stack_frame_for_init_action(self.into(), tag, context);
+                        }
+                    }
+                    return Ok(ControlFlow::Exit);
+                }
                 _ => Ok(()),
             }?;
 
@@ -4891,6 +4908,7 @@ struct MovieClipStatic<'gc> {
     // These two maps hold DoAbc/SymbolClass data that was loaded during preloading, but
     // hasn't yet been executed yet. The first time we encounter a frame, we will remove
     // the `Vec` from this map, and process it in `run_eager_script_and_symbol`
+    do_init_tags: Vec<SwfSlice>,
     abc_tags: GcCell<'gc, HashMap<FrameNumber, Vec<AbcCodeAndTag>>>,
     symbolclass_names: GcCell<'gc, HashMap<FrameNumber, Vec<(Avm2QName<'gc>, u16)>>>,
 }
@@ -4932,6 +4950,7 @@ impl<'gc> MovieClipStatic<'gc> {
             avm2_class: GcCell::new(gc_context, None),
             loader_info,
             preload_progress: GcCell::new(gc_context, Default::default()),
+            do_init_tags: Vec::new(),
             abc_tags: GcCell::new(gc_context, Default::default()),
             symbolclass_names: GcCell::new(gc_context, Default::default()),
         }

@@ -1041,6 +1041,15 @@ pub fn set_mask<'gc>(
                 format!("Mask is not a DisplayObject: {mask:?}").into()
             })?;
 
+            // LJPTV - lecteur video principal.
+            if this.name().as_wstr().to_string() == "media"
+                && mask.name().as_wstr().to_string() == "masker"
+            {
+                let gc = activation.gc();
+                this.set_clip_depth(gc, 0);
+                mask.set_clip_depth(gc, 0);
+            }
+
             this.set_masker(activation.context.gc_context, Some(mask), true);
             mask.set_maskee(activation.context.gc_context, Some(this), true);
         } else {
