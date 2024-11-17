@@ -1427,31 +1427,54 @@ pub trait TDisplayObject<'gc>:
     /// Set by the ActionScript `_width`/`width` properties.
     /// This does odd things on rotated clips to match the behavior of Flash.
     fn set_width(&self, context: &mut UpdateContext<'gc>, value: f64) {
+        if value < 0.0 {
+            return;
+        }
+
         let gc_context = context.gc_context;
         let object_bounds = self.bounds();
         let object_width = object_bounds.width().to_pixels();
         let object_height = object_bounds.height().to_pixels();
-        let aspect_ratio = object_height / object_width;
 
-        let (target_scale_x, target_scale_y) = if object_width != 0.0 {
-            (value / object_width, value / object_height)
+        let (mut new_scale_x, mut new_scale_y) = if object_width == 0.0 {
+            if object_height == 0.0 {
+                (0.0, 0.0)
+            } else {
+                return;
+            }
         } else {
-            (0.0, 0.0)
-        };
+            let width = object_width.max(1.0 / Twips::TWIPS_PER_PIXEL as f64);
+            let height = object_height.max(1.0 / Twips::TWIPS_PER_PIXEL as f64);
+            let aspect_ratio = height / width;
+            let target_scale_x = value / width;
+            let target_scale_y = value / height;
 
-        // No idea about the derivation of this -- figured it out via lots of trial and error.
-        // It has to do with the length of the sides A, B of an AABB enclosing the object's OBB with sides a, b:
-        // A = sin(t) * a + cos(t) * b
-        // B = cos(t) * a + sin(t) * b
-        let prev_scale_x = self.scale_x(gc_context).unit();
-        let prev_scale_y = self.scale_y(gc_context).unit();
-        let rotation = self.rotation(gc_context);
-        let cos = f64::abs(f64::cos(rotation.into_radians()));
-        let sin = f64::abs(f64::sin(rotation.into_radians()));
-        let mut new_scale_x = aspect_ratio * (cos * target_scale_x + sin * target_scale_y)
-            / ((cos + aspect_ratio * sin) * (aspect_ratio * cos + sin));
-        let mut new_scale_y =
-            (sin * prev_scale_x + aspect_ratio * cos * prev_scale_y) / (aspect_ratio * cos + sin);
+            // No idea about the derivation of this -- figured it out via lots of trial and error.
+            // It has to do with the length of the sides A, B of an AABB enclosing the object's OBB with sides a, b:
+            // A = sin(t) * a + cos(t) * b
+            // B = cos(t) * a + sin(t) * b
+            let prev_scale_x = self.scale_x(gc_context).unit();
+            let prev_scale_y = self.scale_y(gc_context).unit();
+            let rotation = self.rotation(gc_context);
+            let cos = f64::abs(f64::cos(rotation.into_radians()));
+            let sin = f64::abs(f64::sin(rotation.into_radians()));
+
+            let new_scale_x = if object_width == 0.0 {
+                1.0
+            } else {
+                aspect_ratio * (cos * target_scale_x + sin * target_scale_y)
+                    / ((cos + aspect_ratio * sin) * (aspect_ratio * cos + sin))
+            };
+
+            let new_scale_y = if object_height == 0.0 {
+                1.0
+            } else {
+                (sin * prev_scale_x + aspect_ratio * cos * prev_scale_y)
+                    / (aspect_ratio * cos + sin)
+            };
+
+            (new_scale_x, new_scale_y)
+        };
 
         if !new_scale_x.is_finite() {
             new_scale_x = 0.0;
@@ -1475,31 +1498,54 @@ pub trait TDisplayObject<'gc>:
     /// Set by the ActionScript `_height`/`height` properties.
     /// This does odd things on rotated clips to match the behavior of Flash.
     fn set_height(&self, context: &mut UpdateContext<'gc>, value: f64) {
+        if value < 0.0 {
+            return;
+        }
+
         let gc_context = context.gc_context;
         let object_bounds = self.bounds();
         let object_width = object_bounds.width().to_pixels();
         let object_height = object_bounds.height().to_pixels();
-        let aspect_ratio = object_width / object_height;
 
-        let (target_scale_x, target_scale_y) = if object_height != 0.0 {
-            (value / object_width, value / object_height)
+        let (mut new_scale_x, mut new_scale_y) = if object_height == 0.0 {
+            if object_width == 0.0 {
+                (0.0, 0.0)
+            } else {
+                return;
+            }
         } else {
-            (0.0, 0.0)
-        };
+            let width = object_width.max(1.0 / Twips::TWIPS_PER_PIXEL as f64);
+            let height = object_height.max(1.0 / Twips::TWIPS_PER_PIXEL as f64);
+            let aspect_ratio = width / height;
+            let target_scale_x = value / width;
+            let target_scale_y = value / height;
 
-        // No idea about the derivation of this -- figured it out via lots of trial and error.
-        // It has to do with the length of the sides A, B of an AABB enclosing the object's OBB with sides a, b:
-        // A = sin(t) * a + cos(t) * b
-        // B = cos(t) * a + sin(t) * b
-        let prev_scale_x = self.scale_x(gc_context).unit();
-        let prev_scale_y = self.scale_y(gc_context).unit();
-        let rotation = self.rotation(gc_context);
-        let cos = f64::abs(f64::cos(rotation.into_radians()));
-        let sin = f64::abs(f64::sin(rotation.into_radians()));
-        let mut new_scale_x =
-            (aspect_ratio * cos * prev_scale_x + sin * prev_scale_y) / (aspect_ratio * cos + sin);
-        let mut new_scale_y = aspect_ratio * (sin * target_scale_x + cos * target_scale_y)
-            / ((cos + aspect_ratio * sin) * (aspect_ratio * cos + sin));
+            // No idea about the derivation of this -- figured it out via lots of trial and error.
+            // It has to do with the length of the sides A, B of an AABB enclosing the object's OBB with sides a, b:
+            // A = sin(t) * a + cos(t) * b
+            // B = cos(t) * a + sin(t) * b
+            let prev_scale_x = self.scale_x(gc_context).unit();
+            let prev_scale_y = self.scale_y(gc_context).unit();
+            let rotation = self.rotation(gc_context);
+            let cos = f64::abs(f64::cos(rotation.into_radians()));
+            let sin = f64::abs(f64::sin(rotation.into_radians()));
+
+            let new_scale_x = if object_width == 0.0 {
+                1.0
+            } else {
+                (aspect_ratio * cos * prev_scale_x + sin * prev_scale_y)
+                    / (aspect_ratio * cos + sin)
+            };
+
+            let new_scale_y = if object_height == 0.0 {
+                1.0
+            } else {
+                aspect_ratio * (sin * target_scale_x + cos * target_scale_y)
+                    / ((cos + aspect_ratio * sin) * (aspect_ratio * cos + sin))
+            };
+
+            (new_scale_x, new_scale_y)
+        };
 
         if !new_scale_x.is_finite() {
             new_scale_x = 0.0;
