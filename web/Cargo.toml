@@ -60,6 +60,7 @@ rfd = { workspace = true, features = ["file-handle-inner"] }
 wasm-streams = "0.4.2"
 futures = { workspace = true }
 zip = { version = "2.6.1", default-features = false}
+gloo-timers = { version = "=0.3.0", features = ["futures"] }
 
 [dependencies.ruffle_core]
 path = "../core"
@@ -67,15 +68,7 @@ features = ["audio", "mp3", "aac", "nellymoser", "default_compatibility_rules", 
 
 [dependencies.web-sys]
 workspace = true
-features = [
-    "AddEventListenerOptions", "AudioBuffer", "AudioBufferSourceNode", "AudioContext",
-    "AudioDestinationNode", "AudioNode", "AudioParam", "Blob", "BlobPropertyBag",
-    "ChannelMergerNode", "ChannelSplitterNode", "ClipboardEvent", "DataTransfer", "Element", "Event",
-    "EventTarget", "GainNode", "Headers", "HtmlCanvasElement", "HtmlDocument", "HtmlElement", "HtmlFormElement",
-    "HtmlInputElement", "HtmlTextAreaElement", "KeyboardEvent", "Location", "PointerEvent",
-    "Request", "RequestInit", "Response", "Storage", "WheelEvent", "Window", "ReadableStream", "RequestCredentials",
-    "Url", "WebGlContextEvent", "Clipboard", "FocusEvent", "ShadowRoot", "Gamepad", "GamepadButton"
-]
+features = ["AddEventListenerOptions", "AudioBuffer", "AudioBufferSourceNode", "AudioContext", "AudioDestinationNode", "AudioNode", "AudioParam", "Blob", "BlobPropertyBag", "ChannelMergerNode", "ChannelSplitterNode", "ClipboardEvent", "DataTransfer", "Element", "Event", "EventTarget", "GainNode", "Headers", "HtmlCanvasElement", "HtmlDocument", "HtmlElement", "HtmlFormElement", "HtmlInputElement", "HtmlTextAreaElement", "KeyboardEvent", "Location", "PointerEvent", "Request", "RequestInit", "Response", "Storage", "WheelEvent", "Window", "ReadableStream", "RequestCredentials", "Url", "WebGlContextEvent", "Clipboard", "FocusEvent", "ShadowRoot", "Gamepad", "GamepadButton", "AbortController", "AbortSignal"]
 
 [package.metadata.cargo-machete]
 ignored = [

@@ -260,6 +260,12 @@ pub trait NavigatorBackend: Any {
     /// Fetch data and return it some time in the future.
     fn fetch(&self, request: Request) -> OwnedFuture<Box<dyn SuccessResponse>, ErrorResponse>;
 
+    /// Abort all fetch requests on player drop.
+    fn abort_fetch_requests(&self);
+
+    /// Whether fetch requests have been aborted due to player drop.
+    fn fetch_requests_aborted(&self) -> bool;
+
     /// Take a URL string and resolve it to the actual URL from which a file
     /// can be fetched. This includes handling of relative links and pre-processing.
     ///
@@ -417,6 +423,12 @@ impl NavigatorBackend for NullNavigatorBackend {
 
     fn fetch(&self, request: Request) -> OwnedFuture<Box<dyn SuccessResponse>, ErrorResponse> {
         fetch_path(self, "NullNavigatorBackend", request.url(), None)
+    }
+
+    fn abort_fetch_requests(&self) {}
+
+    fn fetch_requests_aborted(&self) -> bool {
+        false
     }
 
     fn resolve_url(&self, url: &str) -> Result<Url, ParseError> {

@@ -4,7 +4,8 @@ use async_channel::{Receiver, Sender};
 use futures_util::future::Either;
 use futures_util::{future, SinkExt, StreamExt};
 use gloo_net::websocket::{futures::WebSocket, Message};
-use js_sys::{Array, Promise, RegExp, Uint8Array};
+use gloo_timers::future::TimeoutFuture;
+use js_sys::{Array, RegExp, Uint8Array,Promise};
 use ruffle_core::backend::navigator::{
     async_return, create_fetch_error, create_specific_fetch_error, get_encoding, ErrorResponse,
     NavigationMethod, NavigatorBackend, OwnedFuture, Request, SuccessResponse,
@@ -27,9 +28,9 @@ use url::{ParseError, Url};
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::{spawn_local, JsFuture};
 use wasm_streams::readable::ReadableStream;
-use web_sys::{
-    window, Blob, BlobPropertyBag, HtmlFormElement, HtmlInputElement, Request as WebRequest,
-    RequestCredentials, RequestInit, Response as WebResponse,
+use web_sys::{DomException,
+    window, AbortController, Blob, BlobPropertyBag, HtmlFormElement, HtmlInputElement,
+    Request as WebRequest, RequestCredentials, RequestInit, Response as WebResponse,
 };
 
 /// The handling mode of links opening a new website.
@@ -50,6 +51,7 @@ pub enum OpenUrlMode {
 
 pub struct WebNavigatorBackend {
     log_subscriber: Arc<Layered<WASMLayer, Registry>>,
+    abort_controller: AbortController,
     allow_script_access: bool,
     allow_networking: NetworkingAccessMode,
     upgrade_to_https: bool,
@@ -75,6 +77,8 @@ impl WebNavigatorBackend {
         credential_allow_list: Vec<String>,
     ) -> Self {
         let window = web_sys::window().expect("window()");
+
+        let abort_controller = AbortController::new().expect("AbortController()");
 
         // Upgrade to HTTPS takes effect if the current page is hosted on HTTPS.
         let upgrade_to_https =
@@ -114,6 +118,7 @@ impl WebNavigatorBackend {
             url_rewrite_rules,
             base_url,
             log_subscriber,
+            abort_controller,
             open_url_mode,
             socket_proxies,
             credential_allow_list,
@@ -323,6 +328,8 @@ impl NavigatorBackend for WebNavigatorBackend {
             }
         };
 
+        let signal = self.abort_controller.signal();
+
         let credentials = if let Some(host) = url.host_str() {
             if self
                 .credential_allow_list
@@ -341,6 +348,7 @@ impl NavigatorBackend for WebNavigatorBackend {
             let init = RequestInit::new();
 
             init.set_method(&request.method().to_string());
+            init.set_signal(Some(&signal));
             init.set_credentials(credentials);
 
             if let Some((data, mime)) = request.body() {
@@ -419,6 +427,14 @@ impl NavigatorBackend for WebNavigatorBackend {
         })
     }
 
+    fn abort_fetch_requests(&self) {
+        self.abort_controller.abort();
+    }
+
+    fn fetch_requests_aborted(&self) -> bool {
+        self.abort_controller.signal().aborted()
+    }
+
     fn resolve_url(&self, url: &str) -> Result<Url, ParseError> {
         if let Some(base_url) = &self.base_url {
             match base_url.join(url) {
@@ -462,6 +478,7 @@ impl NavigatorBackend for WebNavigatorBackend {
                         .expect("Failed to call setTimeout with dummy promise");
                 });
                 let _ = JsFuture::from(promise).await;
+                //TimeoutFuture::new(0).await;
             }
             if let Err(e) = future.await {
                 tracing::error!("Asynchronous error occurred: {}", e);
@@ -579,8 +596,13 @@ impl SuccessResponse for WebResponseWrapper {
                     .map_err(|_| Error::FetchError("Got JS error".to_string()))?,
             )
             .await
-            .map_err(|_| {
-                Error::FetchError("Could not allocate array buffer for response".to_string())
+            .map_err(|js_err| {
+				if let Some(dom_exception) = js_err.dyn_ref::<DomException>() {
+					if dom_exception.name() == "AbortError" {
+						return Error::Cancelled;
+					}
+				}
+				Error::FetchError("Could not allocate array buffer for response".to_string())
             })?
             .dyn_into()
             .map_err(|_| {

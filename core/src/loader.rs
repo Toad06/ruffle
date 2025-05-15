@@ -1913,6 +1913,9 @@ impl<'gc> Loader<'gc> {
                     })?;
 
                     loop {
+                        if player.lock().unwrap().navigator().fetch_requests_aborted() {
+                            return Err(Error::Cancelled);
+                        }
                         let chunk = response.next_chunk().await;
                         let is_end = matches!(chunk, Ok(None));
                         player.lock().unwrap().update(|uc| {

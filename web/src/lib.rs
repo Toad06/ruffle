@@ -789,9 +789,10 @@ impl RuffleHandle {
             ));
 
             instance.unload_callback =
-                Some(JsCallback::register(&window, "unload", false, move |_| {
+                Some(JsCallback::register(&window, "beforeunload", false, move |_| {
                     let _ = ruffle.with_core_mut(|core| {
                         core.flush_shared_objects();
+                        core.navigator().abort_fetch_requests();
                     });
                 }));
         })?;
@@ -1221,6 +1222,7 @@ impl Drop for RuffleInstance {
         let _ = self.with_core_mut(|core| {
             core.audio_mut().stop_all_sounds();
             core.flush_shared_objects();
+            core.navigator().abort_fetch_requests();
         });
 
         // Cancel the animation handler, if it's still active.
