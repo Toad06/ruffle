@@ -1914,7 +1914,7 @@ impl<'gc> Loader<'gc> {
 
                     loop {
                         let chunk = response.next_chunk().await;
-                        let is_end = matches!(chunk, Ok(None));
+                        let is_end = matches!(chunk, Ok(None) | Err(_));
                         player.lock().unwrap().update(|uc| {
                             let loader = uc.load_manager.get_loader(handle);
                             let stream = match loader {
